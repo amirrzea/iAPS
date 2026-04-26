@@ -1,18 +1,17 @@
-name: 4. Build iAPS (Unsigned IPA)
+name: 4. Build iAPS (IPA ONLY)
 run-name: Build IPA from ${{ github.ref_name }}
 on:
-  workflow_dispatch: # Manual trigger only
+  workflow_dispatch: # Manual trigger for your $20 signing path
 
 env:  
   UPSTREAM_REPO: Artificial-Pancreas/iAPS
-  UPSTREAM_BRANCH: main # Always pull from the official main
+  UPSTREAM_BRANCH: main
   TARGET_BRANCH: ipa-only
-  ALIVE_BRANCH: alive
 
 jobs:
   build:
     name: Build Unsigned IPA
-    runs-on: macos-latest
+    runs-on: macos-15-arm64 # Using the ARM64 runners for speed
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v4
@@ -21,8 +20,8 @@ jobs:
           submodules: recursive
           ref: ipa-only
 
-      - name: Select Xcode version
-        run: "sudo xcode-select --switch /Applications/Xcode_16.0.app/Contents/Developer"
+      - name: Select Xcode Version
+        run: sudo xcode-select -s /Applications/Xcode_16.app
 
       - name: Install Bundler
         run: |
@@ -30,15 +29,15 @@ jobs:
           echo "BUNDLER_VER=2.7.2" >> $GITHUB_ENV
 
       - name: Install dependencies
-        run: bundle _${{ env.BUNDLER_VER }}_ install
+        run: bundle _2.7.2_ install
 
       - name: Xcode Archive (Unsigned)
         run: |
           xcodebuild archive \
-            -workspace iAPS.xcworkspace \
-            -scheme iAPS \
+            -workspace FreeAPS.xcworkspace \
+            -scheme FreeAPS \
             -configuration Release \
-            -archivePath iAPS.xcarchive \
+            -archivePath FreeAPS.xcarchive \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY=""
@@ -47,7 +46,7 @@ jobs:
         run: |
           mkdir -p artifacts
           mkdir Payload
-          cp -r iAPS.xcarchive/Products/Applications/iAPS.app Payload/
+          cp -r FreeAPS.xcarchive/Products/Applications/FreeAPS.app Payload/
           zip -r artifacts/iAPS_unsigned.ipa Payload
 
       - name: Upload IPA Artifact
