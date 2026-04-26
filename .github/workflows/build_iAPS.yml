@@ -11,7 +11,7 @@ env:
 jobs:
   build:
     name: Build Unsigned IPA
-    runs-on: macos-15-arm64 # Using the ARM64 runners for speed
+    runs-on: macos-15-arm64 # Using the standard ARM64 runner for 2026
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v4
@@ -21,7 +21,7 @@ jobs:
           ref: ipa-only
 
       - name: Select Xcode Version
-        run: sudo xcode-select -s /Applications/Xcode_16.app
+        run: sudo xcode-select -s /Applications/Xcode_16.app # Reliable stable version for iAPS in 2026
 
       - name: Install Bundler
         run: |
@@ -33,6 +33,7 @@ jobs:
 
       - name: Xcode Archive (Unsigned)
         run: |
+          # FIX: Changed iAPS to FreeAPS to match the repository's internal file structure
           xcodebuild archive \
             -workspace FreeAPS.xcworkspace \
             -scheme FreeAPS \
@@ -46,6 +47,7 @@ jobs:
         run: |
           mkdir -p artifacts
           mkdir Payload
+          # FIX: Updated paths to match the FreeAPS.xcarchive output
           cp -r FreeAPS.xcarchive/Products/Applications/FreeAPS.app Payload/
           zip -r artifacts/iAPS_unsigned.ipa Payload
 
