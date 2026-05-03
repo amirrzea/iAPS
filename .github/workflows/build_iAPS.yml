@@ -1,7 +1,7 @@
 name: 4. Build iAPS (IPA ONLY)
 run-name: Build IPA from ${{ github.ref_name }}
 on:
-  workflow_dispatch: # Manual trigger for your $20 signing path
+  workflow_dispatch:
 
 env:  
   UPSTREAM_REPO: Artificial-Pancreas/iAPS
@@ -11,7 +11,7 @@ env:
 jobs:
   build:
     name: Build Unsigned IPA
-    runs-on: macos-latest # Using the standard ARM64 runner for 2026
+    runs-on: macos-latest
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v4
@@ -21,7 +21,12 @@ jobs:
           ref: ipa-only
 
       - name: Select Xcode Version
-        run: sudo xcode-select -s /Applications/Xcode_16.app # Reliable stable version for iAPS in 2026
+        run: sudo xcode-select -s /Applications/Xcode_16.app
+
+      - name: DISCOVERY - List Available Schemes
+        run: |
+          echo "Listing all schemes in the workspace..."
+          xcodebuild -list -workspace FreeAPS.xcworkspace
 
       - name: Install Bundler
         run: |
@@ -31,12 +36,9 @@ jobs:
       - name: Install dependencies
         run: bundle _2.7.2_ install
 
-      - name: List Schemes (Troubleshooting)
-        run: xcodebuild -list -workspace FreeAPS.xcworkspace
-
       - name: Xcode Archive (Unsigned)
         run: |
-          # Both workspace and scheme are set to FreeAPS
+          # We will try 'FreeAPS' one more time with a small tweak
           xcodebuild archive \
             -workspace FreeAPS.xcworkspace \
             -scheme FreeAPS \
@@ -50,8 +52,7 @@ jobs:
         run: |
           mkdir -p artifacts
           mkdir Payload
-          # The app file name follows the scheme name (FreeAPS.app)
-          cp -r FreeAPS.xcarchive/Products/Applications/FreeAPS.app Payload/
+          cp -r FreeAPS.xcarchive/Products/Applications/*.app Payload/
           zip -r artifacts/iAPS_unsigned.ipa Payload
 
       - name: Upload IPA Artifact
