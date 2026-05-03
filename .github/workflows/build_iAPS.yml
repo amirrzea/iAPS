@@ -27,7 +27,7 @@ jobs:
             fi
           fi
 
-  # CHANGE 1: Disabled cert check because it requires the $99 paywall
+  # Disabled: Bypassing the $99 paid requirement
   check_certs: 
     needs: auto_build_check
     name: Check certificates
@@ -47,14 +47,13 @@ jobs:
 
   build:
     name: Build
-    # CHANGE 2: Removed dependency on check_certs so it doesn't block the build
     needs: [auto_build_check, check_latest_from_upstream]
-    runs-on: macos-15
+    runs-on: macos-15 
     permissions:
       contents: write
     steps:
       - name: Select Xcode version
-        # CHANGE 3: Corrected path for Xcode 16 (Required for DanaKit format)
+        # FIXED: Using the path proven to exist in your 22:42 build log
         run: "sudo xcode-select -s /Applications/Xcode_16.app"
       
       - name: Checkout Repo for building
@@ -75,17 +74,17 @@ jobs:
       - name: Sync clock
         run: sudo sntp -sS time.windows.com
 
-      # CHANGE 4: Replaced Fastlane with direct xcodebuild to bypass the $99 paywall
-      # We target the iOS 17.5 SDK to fix your "iOS 18 not installed" error.
       - name: Build Unsigned IPA
         run: |
+          # SDK FIX: Added -sdk iphoneos to solve the "iOS 18 not installed" error
+          # SCHEME FIX: Using 'FreeAPSWorkspace' which was discovered in your previous run
           xcodebuild archive \
             -workspace FreeAPS.xcworkspace \
             -scheme FreeAPSWorkspace \
             -configuration Release \
             -archivePath FreeAPS.xcarchive \
             -destination 'generic/platform=iOS' \
-            -sdk iphoneos17.5 \
+            -sdk iphoneos \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
@@ -95,8 +94,6 @@ jobs:
           mkdir Payload
           cp -r FreeAPS.xcarchive/Products/Applications/*.app Payload/
           zip -r artifacts/iAPS_unsigned.ipa Payload
-
-      # Fastlane steps removed here because they require $99 account access
 
       - name: Upload Build artifacts
         if: always()
