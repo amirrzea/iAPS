@@ -1,0 +1,55 @@
+name: 4. Build iAPS (Manual IPA)
+run-name: Manual IPA Build (${{ github.ref_name }})
+
+on:
+  workflow_dispatch: # This provides the "Run workflow" button
+
+jobs:
+  build:
+    name: Build Unsigned IPA
+    runs-on: macos-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_PAT }}
+          submodules: recursive
+          # Force it to build from your current branch
+          ref: ${{ github.ref_name }}
+
+      - name: Select Xcode Version
+        run: sudo xcode-select -s /Applications/Xcode_16.app
+
+      - name: Install Bundler
+        run: |
+          gem install bundler -v 2.7.2
+          echo "BUNDLER_VER=2.7.2" >> $GITHUB_ENV
+
+      - name: Install dependencies
+        run: bundle _2.7.2_ install
+
+      - name: Xcode Archive (Unsigned)
+        run: |
+          # The workspace name must match the files in the repo (FreeAPS)
+          xcodebuild archive \
+            -workspace FreeAPS.xcworkspace \
+            -scheme FreeAPS \
+            -configuration Release \
+            -archivePath FreeAPS.xcarchive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
+
+      - name: Create IPA Package
+        run: |
+          mkdir -p artifacts
+          mkdir Payload
+          # Path corrected to match the FreeAPS archive output
+          cp -r FreeAPS.xcarchive/Products/Applications/FreeAPS.app Payload/
+          zip -r artifacts/iAPS_unsigned.ipa Payload
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: iAPS-Unsigned-Package
+          path: artifacts/iAPS_unsigned.ipa
