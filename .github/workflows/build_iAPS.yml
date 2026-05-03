@@ -11,7 +11,8 @@ env:
 jobs:
   build:
     name: Build Unsigned IPA
-    runs-on: macos-latest 
+    # STABILITY FIX: Using macos-14 for better pre-installed SDK support
+    runs-on: macos-14 
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v4
@@ -21,7 +22,8 @@ jobs:
           ref: ipa-only
 
       - name: Select Xcode Version
-        run: sudo xcode-select -s /Applications/Xcode_16.app 
+        # STABILITY FIX: Xcode 15.4 is the most reliable for unsigned iAPS builds
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app 
 
       - name: Install Bundler
         run: |
@@ -33,13 +35,14 @@ jobs:
 
       - name: Xcode Archive (Unsigned)
         run: |
-          # SETTING: Fixed scheme to FreeAPSWorkspace and added iOS destination
+          # SDK FIX: Added -sdk iphoneos to force mobile headers
           xcodebuild archive \
             -workspace FreeAPS.xcworkspace \
             -scheme FreeAPSWorkspace \
             -configuration Release \
             -archivePath FreeAPS.xcarchive \
             -destination 'generic/platform=iOS' \
+            -sdk iphoneos \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
@@ -49,7 +52,7 @@ jobs:
         run: |
           mkdir -p artifacts
           mkdir Payload
-          # WILDCARD: This finds the .app file regardless of its exact name
+          # WILDCARD: Finds the .app file regardless of its internal naming
           cp -r FreeAPS.xcarchive/Products/Applications/*.app Payload/
           zip -r artifacts/iAPS_unsigned.ipa Payload
 
