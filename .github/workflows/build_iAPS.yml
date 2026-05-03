@@ -7,7 +7,7 @@ on:
 env:  
   UPSTREAM_REPO: Artificial-Pancreas/iAPS
   UPSTREAM_BRANCH: main
-  TARGET_BRANCH: ipa-only  # Changed to target your special branch
+  TARGET_BRANCH: ipa-only
   ALIVE_BRANCH: alive
 
 jobs:
@@ -27,11 +27,11 @@ jobs:
             fi
           fi
 
-  # NOTE: check_certs job is kept for structure but disabled for IPA-only runs
+  # DISABLED: This step requires the $99 agreement
   check_certs: 
     needs: auto_build_check
     name: Check certificates
-    if: false # DISABLED: This requires the $99 fee
+    if: false 
     uses: ./.github/workflows/create_certs.yml
     secrets: inherit
 
@@ -47,16 +47,15 @@ jobs:
 
   build:
     name: Build
-    needs: [auto_build_check, check_latest_from_upstream] # Removed check_certs dependency
-    runs-on: macos-14 # Downgraded to 14 for better SDK stability
+    needs: [auto_build_check, check_latest_from_upstream]
+    runs-on: macos-15 # REQUIRED for the new DanaKit project format
     permissions:
       contents: write
     steps:
       - name: Select Xcode version
-        # FIXED: Corrected path for stable 2026 runners
-        run: "sudo xcode-select -s /Applications/Xcode_15.4.app"
+        run: "sudo xcode-select -s /Applications/Xcode_16.app" # Matches the project format
       
-      - name: Checkout Repo for building
+      - name: Checkout Repo
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GH_PAT }}
@@ -74,7 +73,7 @@ jobs:
       - name: Sync clock
         run: sudo sntp -sS time.windows.com
 
-      # REPLACED: Fastlane Build & Archive (TestFlight version) with direct Unsigned Build
+      # REPLACED: Original Fastlane build replaced with direct Unsigned Build
       - name: Build Unsigned IPA
         run: |
           xcodebuild archive \
@@ -93,9 +92,6 @@ jobs:
           mkdir Payload
           cp -r FreeAPS.xcarchive/Products/Applications/*.app Payload/
           zip -r artifacts/iAPS_unsigned.ipa Payload
-
-      # DISABLED: TestFlight upload (Requires $99 fee)
-      # - name: Fastlane upload to TestFlight ...
 
       - name: Upload Build artifacts
         if: always()
