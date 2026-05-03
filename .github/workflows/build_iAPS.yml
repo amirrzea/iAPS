@@ -1,7 +1,7 @@
-name: 4. Build iAPS (Manual IPA)
+name: 4. Build iAPS (IPA ONLY)
 run-name: Build IPA from ${{ github.ref_name }}
 on:
-  workflow_dispatch:
+  workflow_dispatch: 
 
 env:  
   UPSTREAM_REPO: Artificial-Pancreas/iAPS
@@ -11,7 +11,7 @@ env:
 jobs:
   build:
     name: Build Unsigned IPA
-    runs-on: macos-latest
+    runs-on: macos-latest 
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v4
@@ -21,14 +21,7 @@ jobs:
           ref: ipa-only
 
       - name: Select Xcode Version
-        run: sudo xcode-select -s /Applications/Xcode_16.app
-
-      - name: DISCOVERY - Find the Secret Scheme
-        run: |
-          echo "--- Searching for all Scheme files (.xcscheme) ---"
-          find . -name "*.xcscheme"
-          echo "--- Searching Fastfile for the defined scheme ---"
-          grep -r "scheme" fastlane/ || echo "No scheme found in Fastlane"
+        run: sudo xcode-select -s /Applications/Xcode_16.app 
 
       - name: Install Bundler
         run: |
@@ -40,21 +33,23 @@ jobs:
 
       - name: Xcode Archive (Unsigned)
         run: |
-          # Trying 'FreeAPSWorkspace' based on your -list output
+          # SETTING: Fixed scheme to FreeAPSWorkspace and added iOS destination
           xcodebuild archive \
             -workspace FreeAPS.xcworkspace \
             -scheme FreeAPSWorkspace \
             -configuration Release \
             -archivePath FreeAPS.xcarchive \
+            -destination 'generic/platform=iOS' \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY=""
+            CODE_SIGN_IDENTITY="" \
+            AD_HOC_CODE_SIGNING_ALLOWED=YES
 
       - name: Create IPA Package
         run: |
           mkdir -p artifacts
           mkdir Payload
-          # Using a wildcard to find the .app regardless of the scheme name
+          # WILDCARD: This finds the .app file regardless of its exact name
           cp -r FreeAPS.xcarchive/Products/Applications/*.app Payload/
           zip -r artifacts/iAPS_unsigned.ipa Payload
 
