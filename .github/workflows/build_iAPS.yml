@@ -31,6 +31,9 @@ jobs:
       - name: Install dependencies
         run: bundle _2.7.2_ install
 
+      - name: List Schemes (Troubleshooting)
+        run: xcodebuild -list -workspace FreeAPS.xcworkspace
+
       - name: Xcode Archive (Unsigned)
         run: |
           # Both workspace and scheme are set to FreeAPS
