@@ -1,41 +1,82 @@
-name: 4. Build iAPS (IPA ONLY)
-run-name: Build IPA from ${{ github.ref_name }}
+name: 4. Build iAPS
+run-name: Build iAPS (${{ github.ref_name }})
 on:
-  workflow_dispatch: 
+  workflow_dispatch:
+  push:
 
 env:  
   UPSTREAM_REPO: Artificial-Pancreas/iAPS
   UPSTREAM_BRANCH: main
-  TARGET_BRANCH: ipa-only
+  TARGET_BRANCH: ipa-only  # Changed to target your special branch
+  ALIVE_BRANCH: alive
 
 jobs:
-  build:
-    name: Build Unsigned IPA
-    # STABILITY FIX: Using macos-14 for better pre-installed SDK support
-    runs-on: macos-14 
+  auto_build_check:
+    name: Check Auto Build Status
+    runs-on: ubuntu-latest
+    outputs:
+      AUTO_BUILD_ENABLED: ${{ steps.auto-build-enabled.outputs.auto_build }}
     steps:
-      - name: Checkout Repo
+      - name: Is Auto Build Branch
+        id: auto-build-enabled
+        run: |
+          echo "auto_build=false" >> $GITHUB_OUTPUT
+          if [ ! -z "${{ vars.AUTO_BUILD_BRANCHES }}" ]; then
+            if echo ",${{ vars.AUTO_BUILD_BRANCHES }}," | grep -q ",${{ github.ref_name }},"; then
+              echo "auto_build=true" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+  # NOTE: check_certs job is kept for structure but disabled for IPA-only runs
+  check_certs: 
+    needs: auto_build_check
+    name: Check certificates
+    if: false # DISABLED: This requires the $99 fee
+    uses: ./.github/workflows/create_certs.yml
+    secrets: inherit
+
+  check_latest_from_upstream:
+    runs-on: ubuntu-latest
+    name: Check upstream
+    steps:
+    - name: Checkout target repo
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GH_PAT }}
+        ref: ipa-only
+
+  build:
+    name: Build
+    needs: [auto_build_check, check_latest_from_upstream] # Removed check_certs dependency
+    runs-on: macos-14 # Downgraded to 14 for better SDK stability
+    permissions:
+      contents: write
+    steps:
+      - name: Select Xcode version
+        # FIXED: Corrected path for stable 2026 runners
+        run: "sudo xcode-select -s /Applications/Xcode_15.4.app"
+      
+      - name: Checkout Repo for building
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GH_PAT }}
           submodules: recursive
-          ref: ipa-only
+          ref: ${{ env.TARGET_BRANCH }}
 
-      - name: Select Xcode Version
-        # STABILITY FIX: Xcode 15.4 is the most reliable for unsigned iAPS builds
-        run: sudo xcode-select -s /Applications/Xcode_15.4.app 
-
-      - name: Install Bundler
+      - name: Install Bundler 2.x
         run: |
           gem install bundler -v 2.7.2
           echo "BUNDLER_VER=2.7.2" >> $GITHUB_ENV
 
-      - name: Install dependencies
-        run: bundle _2.7.2_ install
+      - name: Install project dependencies
+        run: bundle _${{ env.BUNDLER_VER }}_ install
 
-      - name: Xcode Archive (Unsigned)
+      - name: Sync clock
+        run: sudo sntp -sS time.windows.com
+
+      # REPLACED: Fastlane Build & Archive (TestFlight version) with direct Unsigned Build
+      - name: Build Unsigned IPA
         run: |
-          # SDK FIX: Added -sdk iphoneos to force mobile headers
           xcodebuild archive \
             -workspace FreeAPS.xcworkspace \
             -scheme FreeAPSWorkspace \
@@ -47,16 +88,17 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             AD_HOC_CODE_SIGNING_ALLOWED=YES
-
-      - name: Create IPA Package
-        run: |
+          
           mkdir -p artifacts
           mkdir Payload
-          # WILDCARD: Finds the .app file regardless of its internal naming
           cp -r FreeAPS.xcarchive/Products/Applications/*.app Payload/
           zip -r artifacts/iAPS_unsigned.ipa Payload
 
-      - name: Upload IPA Artifact
+      # DISABLED: TestFlight upload (Requires $99 fee)
+      # - name: Fastlane upload to TestFlight ...
+
+      - name: Upload Build artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: iAPS-Manual-IPA
