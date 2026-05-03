@@ -27,11 +27,10 @@ jobs:
             fi
           fi
 
-  # Disabled: Bypassing the $99 paid requirement
   check_certs: 
     needs: auto_build_check
     name: Check certificates
-    if: false 
+    if: false # Disabled to bypass the $99 payment requirement
     uses: ./.github/workflows/create_certs.yml
     secrets: inherit
 
@@ -48,12 +47,12 @@ jobs:
   build:
     name: Build
     needs: [auto_build_check, check_latest_from_upstream]
-    runs-on: macos-latest
+    runs-on: macos-15 # Matches the environment needed for Xcode 26
     permissions:
       contents: write
     steps:
       - name: Select Xcode version
-        # FIXED: Using the path proven to exist in your 22:42 build log
+        # Correct path for the toolchain confirmed in your 23:13 build log
         run: "sudo xcode-select --switch /Applications/Xcode_26.2.app/Contents/Developer"
       
       - name: Checkout Repo for building
@@ -76,22 +75,21 @@ jobs:
 
       - name: Build Unsigned IPA
         run: |
-          # SDK FIX: Added -sdk iphoneos to solve the "iOS 18 not installed" error
-          # SCHEME FIX: Using 'FreeAPSWorkspace' which was discovered in your previous run
+          # Use the shared workspace and scheme names proven to exist in your Discovery log
           xcodebuild archive \
             -workspace FreeAPS.xcworkspace \
             -scheme FreeAPSWorkspace \
             -configuration Release \
             -archivePath FreeAPS.xcarchive \
             -destination 'generic/platform=iOS' \
-            -sdk iphoneos \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             AD_HOC_CODE_SIGNING_ALLOWED=YES
-          
+
           mkdir -p artifacts
           mkdir Payload
+          # Finds the compiled app regardless of internal naming
           cp -r FreeAPS.xcarchive/Products/Applications/*.app Payload/
           zip -r artifacts/iAPS_unsigned.ipa Payload
 
