@@ -1,4 +1,4 @@
-name: 4. Build iAPS (IPA ONLY)
+name: 4. Build iAPS (Manual IPA)
 run-name: Build IPA from ${{ github.ref_name }}
 on:
   workflow_dispatch:
@@ -23,10 +23,12 @@ jobs:
       - name: Select Xcode Version
         run: sudo xcode-select -s /Applications/Xcode_16.app
 
-      - name: DISCOVERY - List Available Schemes
+      - name: DISCOVERY - Find the Secret Scheme
         run: |
-          echo "Listing all schemes in the workspace..."
-          xcodebuild -list -workspace FreeAPS.xcworkspace
+          echo "--- Searching for all Scheme files (.xcscheme) ---"
+          find . -name "*.xcscheme"
+          echo "--- Searching Fastfile for the defined scheme ---"
+          grep -r "scheme" fastlane/ || echo "No scheme found in Fastlane"
 
       - name: Install Bundler
         run: |
@@ -38,10 +40,10 @@ jobs:
 
       - name: Xcode Archive (Unsigned)
         run: |
-          # We will try 'FreeAPS' one more time with a small tweak
+          # Trying 'FreeAPSWorkspace' based on your -list output
           xcodebuild archive \
             -workspace FreeAPS.xcworkspace \
-            -scheme FreeAPS \
+            -scheme FreeAPSWorkspace \
             -configuration Release \
             -archivePath FreeAPS.xcarchive \
             CODE_SIGNING_ALLOWED=NO \
@@ -52,6 +54,7 @@ jobs:
         run: |
           mkdir -p artifacts
           mkdir Payload
+          # Using a wildcard to find the .app regardless of the scheme name
           cp -r FreeAPS.xcarchive/Products/Applications/*.app Payload/
           zip -r artifacts/iAPS_unsigned.ipa Payload
 
