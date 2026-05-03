@@ -11,7 +11,7 @@ env:
 jobs:
   build:
     name: Build Unsigned IPA
-    runs-on: macos-15-arm64 # Using the standard ARM64 runner for 2026
+    runs-on: macos-latest # Using the standard ARM64 runner for 2026
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v4
