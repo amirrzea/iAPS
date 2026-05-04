@@ -62,6 +62,12 @@ jobs:
           submodules: recursive
           ref: ${{ env.TARGET_BRANCH }}
 
+      - name: Patch Team ID Placeholder
+        run: |
+          echo "Replacing ##TEAM_ID## with your confirmed ID: 4456654377"
+          # This finds every file containing the placeholder and swaps it
+          grep -rl "##TEAM_ID##" . | xargs sed -i '' 's/##TEAM_ID##/4456654377/g'
+
       - name: Install Bundler 2.x
         run: |
           gem install bundler -v 2.7.2
